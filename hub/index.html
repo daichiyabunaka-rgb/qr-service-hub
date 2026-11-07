@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Service Hub</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: #f4f4f9;
+      color: #1f1f2e;
+    }
+    .container { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
+    .header { text-align: center; padding: 16px 0 8px; }
+    .header h1 { font-size: 20px; margin: 0 0 4px; }
+    .header p { font-size: 13px; color: #77778f; margin: 0; }
+    .links { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+    .link-card {
+      display: block;
+      background: #fff;
+      border: 1px solid #e4e4ef;
+      border-radius: 14px;
+      padding: 16px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 1px 3px rgba(31,31,46,.06);
+    }
+    .link-card:active { background: #f0f0fa; }
+    .link-title { font-weight: 600; font-size: 15px; }
+    .link-host { font-size: 12px; color: #77778f; margin-top: 4px; word-break: break-all; }
+    .status { text-align: center; color: #77778f; padding: 48px 0; font-size: 14px; }
+    .footer { text-align: center; font-size: 11px; color: #a0a0b5; margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="content"></div>
+    <div class="footer">Powered by QR Service Hub</div>
+  </div>
+
+  <!-- Firebase SDK（compat版）。Firestoreへの読み取りはセキュリティルールで公開読み取りのみ許可されている -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDvjhSZFpIQERYtwzh-dpy9zpxEdPoP9V8",
+      authDomain: "onetomanymyqrcode.firebaseapp.com",
+      projectId: "onetomanymyqrcode",
+      storageBucket: "onetomanymyqrcode.firebasestorage.app",
+      messagingSenderId: "296827022951",
+      appId: "1:296827022951:web:b3611c2541471cde71aec2"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // URLからslugを取り出す: /u/{slug} （書き換え設定によりこのindex.htmlが表示される）
+    function getSlug() {
+      const path = location.pathname;
+      const match = path.match(/^\/u\/([^/]+)/);
+      if (match) return decodeURIComponent(match[1]);
+      const param = new URLSearchParams(location.search).get('u');
+      return param ? decodeURIComponent(param) : null;
+    }
+
+    function setStatus(message) {
+      document.getElementById('content').innerHTML = '';
+      const el = document.createElement('div');
+      el.className = 'status';
+      // XSS対策: innerHTMLは使わずtextContentで代入する
+      el.textContent = message;
+      document.getElementById('content').appendChild(el);
+    }
+
+    async function main() {
+      const slug = getSlug();
+      if (!slug) {
+        setStatus('URLが不正です');
+        return;
+      }
+      setStatus('読み込み中…');
+      try {
+        const snap = await db.collection('qrCodes')
+          .where('slug', '==', slug)
+          .limit(1)
+          .get();
+        if (snap.empty) {
+          setStatus('このQRコードは存在しないか、削除されています');
+          return;
+        }
+        const qr = snap.docs[0];
+        const data = qr.data();
+        const servicesSnap = await qr.ref.collection('services')
+          .where('isActive', '==', true)
+          .get();
+
+        const services = servicesSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+        const content = document.getElementById('content');
+        content.innerHTML = '';
+
+        const header = document.createElement('div');
+        header.className = 'header';
+        const h1 = document.createElement('h1');
+        h1.textContent = data.title || 'Services';
+        const p = document.createElement('p');
+        p.textContent = 'リンクを選択してください';
+        header.appendChild(h1);
+        header.appendChild(p);
+        content.appendChild(header);
+
+        if (services.length === 0) {
+          setStatus('まだサービスが登録されていません');
+          return;
+        }
+
+        const list = document.createElement('div');
+        list.className = 'links';
+        for (const s of services) {
+          const a = document.createElement('a');
+          a.className = 'link-card';
+          a.href = s.url;
+          a.rel = 'noopener noreferrer';
+          a.target = '_blank';
+          const title = document.createElement('div');
+          title.className = 'link-title';
+          title.textContent = s.title || s.url;
+          const host = document.createElement('div');
+          host.className = 'link-host';
+          try { host.textContent = new URL(s.url).host; } catch (e) { host.textContent = s.url; }
+          a.appendChild(title);
+          a.appendChild(host);
+          list.appendChild(a);
+        }
+        content.appendChild(list);
+      } catch (e) {
+        console.error(e);
+        setStatus('読み込みに失敗しました');
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

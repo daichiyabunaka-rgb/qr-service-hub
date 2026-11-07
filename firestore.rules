@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// QR Service Hub のセキュリティルール。
+// 方針: デフォルト拒否。QRコード/サービスは「読み取りは誰でも可（ハブページ表示のため）」、
+// 書き込みは所有者（ログイン済みかつ ownerId が一致するユーザー）のみ可。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /qrCodes/{qrId} {
+      allow read: if true; // ハブページが匿名ユーザー（QRスキャン者）のために読む
+      allow create: if request.auth != null
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.slug is string
+        && request.resource.data.slug.size() >= 8;
+      allow update: if request.auth != null
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId; // 所有者の付け替え禁止
+      allow delete: if request.auth != null
+        && resource.data.ownerId == request.auth.uid;
+
+      match /services/{serviceId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && get(/databases/$(database)/documents/qrCodes/$(qrId)).data.ownerId == request.auth.uid
+          && request.resource.data.url is string
+          && request.resource.data.url.matches('https://.*');
+        allow update: if request.auth != null
+          && get(/databases/$(database)/documents/qrCodes/$(qrId)).data.ownerId == request.auth.uid
+          && request.resource.data.url is string
+          && request.resource.data.url.matches('https://.*');
+        allow delete: if request.auth != null
+          && get(/databases/$(database)/documents/qrCodes/$(qrId)).data.ownerId == request.auth.uid;
+      }
+    }
+
+    // 上記以外のパスはすべて拒否。
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

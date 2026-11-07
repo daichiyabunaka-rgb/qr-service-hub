@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "296827022951",
+    "project_id": "onetomanymyqrcode",
+    "storage_bucket": "onetomanymyqrcode.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:296827022951:android:7cb3394e90ef77fa71aec2",
+        "android_client_info": {
+          "package_name": "com.daich.qr_service_hub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrXmDmSAgWjvlzHP_AI0fE9w1zZVP0rko"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
