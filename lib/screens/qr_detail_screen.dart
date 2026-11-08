@@ -9,7 +9,9 @@ import 'package:share_plus/share_plus.dart';
 import '../config.dart';
 import '../models/models.dart';
 import '../repos/qr_repository.dart';
+import '../util/qr_image.dart';
 import '../widgets/text_input_dialog.dart';
+import 'goods_screen.dart';
 import 'service_edit_screen.dart';
 
 /// QRコード詳細画面。QRの表示と、配下サービスの管理（追加・編集・並べ替え・表示トグル・削除）を行う。
@@ -125,29 +127,11 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
     if (_savingImage) return;
     setState(() => _savingImage = true);
     try {
-      final painter = QrPainter(
-        data: _hubUrl,
-        version: QrVersions.auto,
-        gapless: true,
-        eyeStyle: const QrEyeStyle(
-          eyeShape: QrEyeShape.square,
-          color: Colors.black,
-        ),
-        dataModuleStyle: const QrDataModuleStyle(
-          dataModuleShape: QrDataModuleShape.square,
-          color: Colors.black,
-        ),
-        // 背景色を指定しない = 描画されない = 透過PNGになる。
-        // ignore: deprecated_member_use
-        emptyColor: transparent ? null : Colors.white,
-      );
-      final byteData = await painter.toImageData(1024);
-      if (byteData == null) {
-        throw Exception('QR画像の生成に失敗しました');
-      }
+      final png =
+          await generateQrPng(_hubUrl, transparent: transparent);
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/qr_${_qr.slug}.png');
-      await file.writeAsBytes(byteData.buffer.asUint8List());
+      await file.writeAsBytes(png);
       await SharePlus.instance.share(
         ShareParams(
           files: [
@@ -410,6 +394,15 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
                         )
                       : const Icon(Icons.download),
                   label: const Text('画像を保存'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => GoodsScreen(qr: _qr),
+                    ),
+                  ),
+                  icon: const Icon(Icons.storefront_outlined),
+                  label: const Text('グッズを作る'),
                 ),
               ],
             ),
