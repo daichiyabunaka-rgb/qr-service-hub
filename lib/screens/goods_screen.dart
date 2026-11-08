@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
@@ -29,7 +30,7 @@ class _GoodsScreenState extends State<GoodsScreen> {
   String _search = '';
   SuzuriItem? _selectedItem;
   bool _transparent = false;
-  late final _priceController = TextEditingController(text: '100');
+  double _scale = 0.7;
   bool _creating = false;
   String? _error;
 
@@ -56,7 +57,6 @@ class _GoodsScreenState extends State<GoodsScreen> {
 
   @override
   void dispose() {
-    _priceController.dispose();
     super.dispose();
   }
 
@@ -74,13 +74,6 @@ class _GoodsScreenState extends State<GoodsScreen> {
     final api = _api;
     final item = _selectedItem;
     if (api == null || item == null || _creating) return;
-    final price = int.tryParse(_priceController.text.trim());
-    if (price == null || price < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ロイヤリティは0以上の数値で入力してください')),
-      );
-      return;
-    }
     setState(() {
       _creating = true;
       _error = null;
@@ -90,6 +83,7 @@ class _GoodsScreenState extends State<GoodsScreen> {
       final png = await generateQrPng(
         buildHubUrl(_qr.slug),
         transparent: _transparent,
+        scale: _scale,
       );
       final dataUri =
           'data:image/png;base64,${base64Encode(png)}';
@@ -97,7 +91,6 @@ class _GoodsScreenState extends State<GoodsScreen> {
         textureDataUri: dataUri,
         title: '${_qr.title} QR',
         itemId: item.id,
-        price: price,
         description: '${_qr.title}のQRコード / ${buildHubUrl(_qr.slug)}',
       );
       if (mounted) {
@@ -107,8 +100,9 @@ class _GoodsScreenState extends State<GoodsScreen> {
             title: const Text('グッズを作成しました'),
             content: Text(
               '「${item.humanizeName}」をSUZURIに公開しました。\n'
-              '購入ページを開いて確認・共有できます。ロイヤリティは'
-              'SUZURIの管理画面から後で調整できます。',
+              '購入ページを開いて確認・共有できます。\n'
+              'ロイヤリティは100円で作成しています。配置の微調整は'
+              'SUZURIの商品ページから行えます。',
             ),
             actions: [
               TextButton(
@@ -182,17 +176,68 @@ class _GoodsScreenState extends State<GoodsScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(
-                      labelText: 'ロイヤリティ（円）',
-                      prefixIcon: Icon(Icons.payments_outlined),
-                      border: OutlineInputBorder(),
-                      helperText: '1点売れるごとに受け取る金額',
-                      suffixText: '円',
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(child: Text('QRのサイズ')),
+                      Text('${(_scale * 100).round()}%',
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                  Slider(
+                    value: _scale,
+                    min: 0.3,
+                    max: 1.0,
+                    divisions: 14,
+                    label: '${(_scale * 100).round()}%',
+                    onChanged: (v) => setState(() => _scale = v),
+                  ),
+                  const Text(
+                    'プレビュー（印刷面イメージ）',
+                    style:TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.black12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Center(
+                          child: SizedBox(
+                            width: 220 * _scale,
+                            height: 220 * _scale,
+                            child: QrImageView(
+                              data: buildHubUrl(_qr.slug),
+                              gapless: true,
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: Colors.black,
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   ),
                 ],
               ),
