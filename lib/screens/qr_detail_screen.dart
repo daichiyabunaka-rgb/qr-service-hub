@@ -82,8 +82,46 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
     );
   }
 
-  /// QRコードを透過背景のPNGとして書き出し、共有シートで保存先を選んでもらう。
-  Future<void> _saveQrImage() async {
+  /// 保存形式を選ぶボトムシートを表示する。
+  void _showFormatSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('背景の形式を選択',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            ListTile(
+              leading: const Icon(Icons.texture_outlined),
+              title: const Text('透過背景'),
+              subtitle: const Text('白・明るい場所への印刷向け'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _saveQrImage(transparent: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.crop_square),
+              title: const Text('白背景'),
+              subtitle: const Text('濃色の紙やダークな素材向け（読み取り安定）'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _saveQrImage(transparent: false);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// QRコードをPNGとして書き出し、共有シートで保存先を選んでもらう。
+  Future<void> _saveQrImage({required bool transparent}) async {
     if (_savingImage) return;
     setState(() => _savingImage = true);
     try {
@@ -91,7 +129,6 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
         data: _hubUrl,
         version: QrVersions.auto,
         gapless: true,
-        // 背景色を指定しない = 描画されない = 透過PNGになる。
         eyeStyle: const QrEyeStyle(
           eyeShape: QrEyeShape.square,
           color: Colors.black,
@@ -100,6 +137,9 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
           dataModuleShape: QrDataModuleShape.square,
           color: Colors.black,
         ),
+        // 背景色を指定しない = 描画されない = 透過PNGになる。
+        // ignore: deprecated_member_use
+        emptyColor: transparent ? null : Colors.white,
       );
       final byteData = await painter.toImageData(1024);
       if (byteData == null) {
@@ -361,7 +401,7 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
                   label: const Text('共有'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: _savingImage ? null : _saveQrImage,
+                  onPressed: _savingImage ? null : _showFormatSheet,
                   icon: _savingImage
                       ? const SizedBox(
                           height: 16,
