@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -21,6 +24,8 @@ class QrDetailScreen extends StatefulWidget {
 }
 
 class _QrDetailScreenState extends State<QrDetailScreen> {
+  bool _savingImage = false;
+
   QrCodeInfo get _qr => widget.qr;
   QrRepository get _repo => widget.repo;
   String get _hubUrl => buildHubUrl(_qr.slug);
@@ -75,6 +80,54 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
     await SharePlus.instance.share(
       ShareParams(text: _hubUrl, title: _qr.title),
     );
+  }
+
+  /// QRコードを透過背景のPNGとして書き出し、共有シートで保存先を選んでもらう。
+  Future<void> _saveQrImage() async {
+    if (_savingImage) return;
+    setState(() => _savingImage = true);
+    try {
+      final painter = QrPainter(
+        data: _hubUrl,
+        version: QrVersions.auto,
+        gapless: true,
+        // 背景色を指定しない = 描画されない = 透過PNGになる。
+        eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.square,
+          color: Colors.black,
+        ),
+        dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.square,
+          color: Colors.black,
+        ),
+      );
+      final byteData = await painter.toImageData(1024);
+      if (byteData == null) {
+        throw Exception('QR画像の生成に失敗しました');
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/qr_${_qr.slug}.png');
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(
+              file.path,
+              mimeType: 'image/png',
+              name: 'qr_${_qr.slug}.png',
+            ),
+          ],
+          text: _qr.title,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('画像の保存に失敗しました: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingImage = false);
+    }
   }
 
   void _onReorder(List<HubService> services, int oldIndex, int newIndex) {
@@ -292,19 +345,31 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
               children: [
                 OutlinedButton.icon(
                   onPressed: _copyUrl,
                   icon: const Icon(Icons.copy),
                   label: const Text('コピー'),
                 ),
-                const SizedBox(width: 12),
                 FilledButton.icon(
                   onPressed: _shareUrl,
                   icon: const Icon(Icons.share),
                   label: const Text('共有'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: _savingImage ? null : _saveQrImage,
+                  icon: _savingImage
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download),
+                  label: const Text('画像を保存'),
                 ),
               ],
             ),
