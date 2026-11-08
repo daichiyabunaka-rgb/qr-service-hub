@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../config.dart';
 import '../models/models.dart';
 import '../repos/qr_repository.dart';
+import '../widgets/text_input_dialog.dart';
 import 'service_edit_screen.dart';
 
 /// QRコード詳細画面。QRの表示と、配下サービスの管理（追加・編集・並べ替え・表示トグル・削除）を行う。
@@ -25,29 +26,14 @@ class _QrDetailScreenState extends State<QrDetailScreen> {
   String get _hubUrl => buildHubUrl(_qr.slug);
 
   Future<void> _rename() async {
-    final controller = TextEditingController(text: _qr.title);
     final newTitle = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('名前を変更'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
+      builder: (context) => TextInputDialog(
+        title: '名前を変更',
+        initialValue: _qr.title,
+        confirmLabel: '保存',
       ),
     );
-    controller.dispose();
     if (newTitle == null || newTitle.isEmpty) return;
     await _repo.renameQrCode(_qr.id, newTitle);
   }

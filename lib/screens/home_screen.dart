@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../config.dart';
 import '../models/models.dart';
 import '../repos/qr_repository.dart';
+import '../widgets/text_input_dialog.dart';
 import 'qr_detail_screen.dart';
 
 /// ログイン後のホーム。所有するQRコード一覧を表示する。
@@ -43,34 +44,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showCreateDialog() async {
-    final titleController = TextEditingController();
-    final created = await showDialog<bool>(
+    final title = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('QRコードを作成'),
-        content: TextField(
-          controller: titleController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'QRコードの名前（例: 店舗名・商品名）',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('作成'),
-          ),
-        ],
+      builder: (context) => const TextInputDialog(
+        title: 'QRコードを作成',
+        labelText: 'QRコードの名前（例: 店舗名・商品名）',
+        confirmLabel: '作成',
       ),
     );
-    final title = titleController.text.trim();
-    titleController.dispose();
-    if (created != true || title.isEmpty) return;
+    if (title == null || title.isEmpty) return;
     final uid = _uid;
     if (uid == null) return;
     await _repo.createQrCode(ownerId: uid, title: title);
