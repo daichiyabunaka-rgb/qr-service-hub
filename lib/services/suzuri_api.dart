@@ -36,7 +36,7 @@ class SuzuriApi {
     required String textureDataUri,
     required String title,
     required int itemId,
-    int price = 300,
+    int price = 100,
     String? description,
   }) async {
     final res = await http.post(

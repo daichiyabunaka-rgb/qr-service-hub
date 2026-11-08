@@ -29,7 +29,7 @@ class _GoodsScreenState extends State<GoodsScreen> {
   String _search = '';
   SuzuriItem? _selectedItem;
   bool _transparent = false;
-  late final _priceController = TextEditingController(text: '300');
+  late final _priceController = TextEditingController(text: '100');
   bool _creating = false;
   String? _error;
 
